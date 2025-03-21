@@ -36,11 +36,11 @@ This project automates the daily synchronization of **paid orders from Booqable*
 
 Secrets are configured via **GitHub Actions > Secrets**:
 
-| Name                   | Description                          |
-|------------------------|--------------------------------------|
-| `BOOQABLE_API_KEY`     | Booqable API key                     |
-| `REELEEZEE_USERNAME`   | Reeleezee username (`bicicare`)      |
-| `REELEEZEE_PASSWORD`   | Reeleezee password                   |
+| Name                   | Description                               |
+|------------------------|-------------------------------------------|
+| `BOOQABLE_API_KEY`     | Booqable API key                          |
+| `REELEEZEE_USERNAME`   | Reeleezee username (e.g. `your_username`) |
+| `REELEEZEE_PASSWORD`   | Reeleezee password                        |
 
 For local testing, use environment variables or a `.env` file with [python-dotenv](https://pypi.org/project/python-dotenv/).
 
