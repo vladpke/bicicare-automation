@@ -3,9 +3,9 @@ from lib.booqable import get_paid_orders, transform_order_to_booking
 from lib.reeleezee import process_booking
 
 logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] %(levelname)s: %(message)s'
+    level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s"
 )
+
 
 def process_all_paid_orders():
     paid_orders = get_paid_orders()
@@ -21,5 +21,5 @@ def process_all_paid_orders():
         process_booking(booking)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     process_all_paid_orders()
