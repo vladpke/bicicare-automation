@@ -1,13 +1,11 @@
+import os
 import requests
 import datetime
 
-# Reeleezee credentials
-import os
 USERNAME = os.getenv('REELEEZEE_USERNAME')
 PASSWORD = os.getenv('REELEEZEE_PASSWORD')
 BASE_URL = 'https://apps.reeleezee.nl/api/v1'
 
-# Common headers
 HEADERS = {
     'Accept': 'application/json',
     'Accept-Language': 'en',
@@ -85,4 +83,3 @@ def process_booking(booking):
 
     if invoice_id:
         create_receipt(customer_name, customer_email, total_amount, invoice_id)
-

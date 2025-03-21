@@ -2,8 +2,8 @@ name: Sync Booqable to Reeleezee
 
 on:
   # schedule:
-  #   - cron: '0 6 * * *'  # Run daily at 06:00 UTC
-  workflow_dispatch:     # Allow manual trigger
+  #   - cron: '0 6 * * *'  # Run daily at 06:00 UTC (currently disabled)
+  workflow_dispatch:       # Allows manual trigger from GitHub UI
 
 jobs:
   run-script:
@@ -25,4 +25,4 @@ jobs:
           BOOQABLE_API_KEY: ${{ secrets.BOOQABLE_API_KEY }}
           REELEEZEE_USERNAME: ${{ secrets.REELEEZEE_USERNAME }}
           REELEEZEE_PASSWORD: ${{ secrets.REELEEZEE_PASSWORD }}
-        run: python booqable_to_reeleezee.py
+        run: python main.py
