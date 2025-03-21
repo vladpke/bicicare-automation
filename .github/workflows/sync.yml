@@ -2,7 +2,7 @@ name: Sync Booqable to Reeleezee
 
 on:
   # schedule:
-  #   - cron: '0 6 * * *'  # Run daily at 06:00 UTC (currently disabled)
+  #   - cron: '30 21 * * *'  # Run daily at 11:30 PM Amsterdam time (9:30 PM UTC)
   workflow_dispatch:       # Allows manual trigger from GitHub UI
 
 jobs:
