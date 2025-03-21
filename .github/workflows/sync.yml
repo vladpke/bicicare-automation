@@ -1,0 +1,28 @@
+name: Sync Booqable to Reeleezee
+
+on:
+  # schedule:
+  #   - cron: '0 6 * * *'  # Run daily at 06:00 UTC
+  workflow_dispatch:     # Allow manual trigger
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run sync script
+        env:
+          BOOQABLE_API_KEY: ${{ secrets.BOOQABLE_API_KEY }}
+          REELEEZEE_USERNAME: ${{ secrets.REELEEZEE_USERNAME }}
+          REELEEZEE_PASSWORD: ${{ secrets.REELEEZEE_PASSWORD }}
+        run: python booqable_to_reeleezee.py
