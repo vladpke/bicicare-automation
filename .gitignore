@@ -1,0 +1,30 @@
+# Python virtual environment
+venv/
+reeleezee_sync/
+env/
+.venv/
+
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# VS Code settings (optional)
+.vscode/
+
+# macOS system files
+.DS_Store
+
+# PyCharm project files
+.idea/
+
+# Logs
+*.log
+
+# Environment/config files (optional)
+.env
+.env.*
+
+# Python egg metadata
+*.egg-info/
+.eggs/
