@@ -56,7 +56,7 @@ For local testing, use environment variables or a `.env` file with [python-doten
 2. Export your secrets as environment variables:
    ```bash
    export BOOQABLE_API_KEY=your_key_here
-   export REELEEZEE_USERNAME=bicicare
+   export REELEEZEE_USERNAME=your_username
    export REELEEZEE_PASSWORD=your_password
    ```
 
