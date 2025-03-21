@@ -31,8 +31,8 @@ def get_paid_orders():
 
     if response.status_code == 200:
         orders = response.json().get('data', [])
-        today = datetime.date.today().isoformat()
-        return [order for order in orders if get_payment_for_order(order['id']).startswith(today)]
+        yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+        return [order for order in orders if get_payment_for_order(order['id']).startswith(yesterday)]
 
     logging.error(f"Error fetching orders from Booqable: {response.text}")
     return []
