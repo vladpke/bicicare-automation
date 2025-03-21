@@ -73,6 +73,7 @@ def create_receipt(customer_name, customer_email, total_amount, invoice_id):
     else:
         logging.error(f"Error creating receipt: {response.text}")
 
+# Create and book a sales invoice, then create a related receipt
 def process_booking(booking):
     customer_name = booking["customer_name"]
     customer_email = booking["customer_email"]

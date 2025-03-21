@@ -11,6 +11,7 @@ booqable_headers = {
     'Content-Type': 'application/json'
 }
 
+# Fetch the succeeded_at timestamp from payments of a given order (if any)
 def get_payment_for_order(order_id):
     url = f'{BOOQABLE_BASE_URL}orders/{order_id}/payments'
     response = requests.get(url, headers=booqable_headers)
@@ -36,6 +37,7 @@ def get_paid_orders():
     logging.error(f"Error fetching orders from Booqable: {response.text}")
     return []
 
+# Convert a Booqable order into the format expected for Reeleezee invoicing
 def transform_order_to_booking(order):
     customer_name = order['attributes']['customer_name']
     customer_email = order['attributes']['customer_email']
