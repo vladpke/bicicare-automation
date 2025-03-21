@@ -1,4 +1,5 @@
 import os
+import logging
 import requests
 import datetime
 
@@ -11,7 +12,8 @@ booqable_headers = {
 }
 
 def get_payment_for_order(order_id):
-    response = requests.get(f'{BOOQABLE_BASE_URL}orders/{order_id}/payments', headers=booqable_headers)
+    url = f'{BOOQABLE_BASE_URL}orders/{order_id}/payments'
+    response = requests.get(url, headers=booqable_headers)
 
     if response.status_code == 200:
         payments = response.json().get('data', [])
@@ -19,21 +21,20 @@ def get_payment_for_order(order_id):
             succeeded_at = payment['attributes'].get('succeeded_at')
             if succeeded_at:
                 return succeeded_at
-    else:
-        print(f"Error fetching payment for order {order_id}:", response.text)
-
+    logging.error(f"Error fetching payment for order {order_id}: {response.text}")
     return None
 
 def get_paid_orders():
-    response = requests.get(f'{BOOQABLE_BASE_URL}orders?filter[payment_status]=paid', headers=booqable_headers)
+    url = f'{BOOQABLE_BASE_URL}orders?filter[payment_status]=paid'
+    response = requests.get(url, headers=booqable_headers)
 
     if response.status_code == 200:
         orders = response.json().get('data', [])
         today = datetime.date.today().isoformat()
         return [order for order in orders if get_payment_for_order(order['id']).startswith(today)]
-    else:
-        print("Error fetching orders from Booqable:", response.text)
-        return []
+
+    logging.error(f"Error fetching orders from Booqable: {response.text}")
+    return []
 
 def transform_order_to_booking(order):
     customer_name = order['attributes']['customer_name']
