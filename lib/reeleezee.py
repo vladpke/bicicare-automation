@@ -3,6 +3,7 @@ import logging
 import requests
 import datetime
 import uuid
+import pycountry
 
 # Reeleezee credentials from environment
 USERNAME = os.getenv("REELEEZEE_USERNAME")
@@ -20,6 +21,14 @@ HEADERS = {
 def get_auth():
     return requests.auth.HTTPBasicAuth(USERNAME, PASSWORD)
 
+def get_country_id(country_name):
+    try:
+        country = pycountry.countries.lookup(country_name)
+        return country.alpha_2
+    except LookupError:
+        logging.warning(f"Could not find country code for: {country_name}")
+        return None
+
 def create_customer(customer_id, name, email, address=None):
     payload = {
         "Name": name,
@@ -27,24 +36,49 @@ def create_customer(customer_id, name, email, address=None):
         "Email": email
     }
 
-    if address:
-        payload["PostalAddress"] = {
-            "AddressLine1": address.get("address1"),
-            "AddressLine2": address.get("address2"),
-            "PostalCode": address.get("zipcode"),
-            "CityName": address.get("city"),
-            "CountryName": address.get("country")
-        }
-
     url = f"{BASE_URL}/{ADMIN_ID}/customers/{customer_id}"
     response = requests.put(url, auth=get_auth(), headers=HEADERS, json=payload)
 
     if response.status_code in [200, 201]:
         logging.info("Customer created or updated: %s", response.json())
+
+        # Create address if available
+        if address:
+            create_customer_address(customer_id, address)
+
         return customer_id
     else:
         logging.error("Error creating customer: %s", response.text)
         return None
+
+def create_customer_address(customer_id, address):
+    address_id = str(uuid.uuid4())
+    country_id = get_country_id(address.get("country"))
+
+    if not country_id:
+        logging.warning("Skipping address creation due to unknown country.")
+        return
+
+    payload = {
+        "Street": address.get("street"),
+        "Number": address.get("number"),
+        "NumberExtension": address.get("number_extension", ""),
+        "City": address.get("city"),
+        "Postcode": address.get("zipcode"),
+        "Country": {
+            "id": country_id
+        },
+        "Type": 2,
+        "IsPostal": True
+    }
+
+    url = f"{BASE_URL}/{ADMIN_ID}/Customers/{customer_id}/Addresses/{address_id}"
+    response = requests.put(url, auth=get_auth(), headers=HEADERS, json=payload)
+
+    if response.status_code in [200, 201]:
+        logging.info("Address added successfully for customer %s", customer_id)
+    else:
+        logging.error("Failed to add address for customer %s: %s", customer_id, response.text)
 
 def create_invoice(customer_id, items, total_amount, reference):
     invoice_id = str(uuid.uuid4())

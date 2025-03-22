@@ -2,6 +2,7 @@ import os
 import logging
 import requests
 import datetime
+import re
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -25,6 +26,23 @@ def get_order_details(order_id):
         logging.error(f"Error fetching order details for {order_id}: {response.text}")
         return None
 
+# Helper function to split address1 into street, number, and number extension
+def split_street_and_number(address_line):
+    if not address_line:
+        return "", "", ""
+
+    match = re.match(r"^(.*?)(?:\s+)?(\d+)([a-zA-Z\-]*)$", address_line.strip())
+    if match:
+        street = match.group(1).strip()
+        number = match.group(2).strip()
+        extension = match.group(3).strip()
+    else:
+        street = address_line.strip()
+        number = ""
+        extension = ""
+
+    return street, number, extension
+
 # Convert a Booqable order into the format expected for Reeleezee invoicing
 def transform_order_to_booking(order, included_lookup):
     customer_id = order["relationships"]["customer"]["data"]["id"]
@@ -37,26 +55,31 @@ def transform_order_to_booking(order, included_lookup):
     if property_relationships:
         first_property_id = property_relationships[0]["id"]
         property_obj = included_lookup.get(first_property_id, {})
-        address = property_obj.get("attributes", {})
+        address_attributes = property_obj.get("attributes", {})
+
+        street, number, extension = split_street_and_number(address_attributes.get("address1", ""))
+
+        address = {
+            "street": street,
+            "number": number,
+            "number_extension": extension,
+            "zipcode": address_attributes.get("zipcode"),
+            "city": address_attributes.get("city"),
+            "country": address_attributes.get("country"),
+        }
 
     customer_data = {
         "id": customer_id,
         "name": customer_attributes.get("name"),
         "email": customer_attributes.get("email"),
-        "address": {
-            "address1": address.get("address1"),
-            "address2": address.get("address2"),
-            "zipcode": address.get("zipcode"),
-            "city": address.get("city"),
-            "country": address.get("country"),
-        }
+        "address": address,
     }
 
     items = [
         {
             "description": "Rental",
             "quantity": 1,
-            "unit_price": order["attributes"]["grand_total_with_tax_in_cents"] / 100
+            "unit_price": order["attributes"]["grand_total_with_tax_in_cents"] / 100,
         }
     ]
 
@@ -67,7 +90,6 @@ def transform_order_to_booking(order, included_lookup):
     }
 
 # Retrieve all paid orders and filter those with payments succeeded yesterday
-
 def get_paid_orders():
     yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
     url = f"{BOOQABLE_BASE_URL}orders?filter[payment_status]=paid&include=payments"
@@ -92,7 +114,6 @@ def get_paid_orders():
             for payment in payments:
                 succeeded_at = payment["attributes"].get("succeeded_at", "")
                 if succeeded_at.startswith(yesterday):
-                    # Fetch full order info with customer and properties
                     full_order_response = get_order_details(order_id)
                     if full_order_response:
                         full_order = full_order_response.get("data")
