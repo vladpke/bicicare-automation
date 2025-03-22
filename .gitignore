@@ -28,3 +28,7 @@ __pycache__/
 # Python egg metadata
 *.egg-info/
 .eggs/
+
+# Test files
+test_booqable_get_paid_orders.py
+prepare_code.py

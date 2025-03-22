@@ -2,6 +2,9 @@ import os
 import logging
 import requests
 import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 BOOQABLE_API_KEY = os.getenv("BOOQABLE_API_KEY")
 BOOQABLE_BASE_URL = "https://bicicare.booqable.com/api/boomerang/"
@@ -11,31 +14,60 @@ booqable_headers = {
     "Content-Type": "application/json",
 }
 
+# Fetch full order details with customer and address info
+def get_order_details(order_id):
+    url = f"{BOOQABLE_BASE_URL}orders/{order_id}?include=payments,customer,customer.properties"
+    response = requests.get(url, headers=booqable_headers)
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        logging.error(f"Error fetching order details for {order_id}: {response.text}")
+        return None
 
 # Convert a Booqable order into the format expected for Reeleezee invoicing
-def transform_order_to_booking(order):
-    customer_name = order["attributes"]["customer_name"]
-    customer_email = order["attributes"]["customer_email"]
+def transform_order_to_booking(order, included_lookup):
+    customer_id = order["relationships"]["customer"]["data"]["id"]
+    customer = included_lookup.get(customer_id, {})
+    customer_attributes = customer.get("attributes", {})
 
-    items = []
-    for item in order["relationships"]["order_items"]["data"]:
-        item_detail = item["attributes"]
-        items.append(
-            {
-                "description": item_detail["name"],
-                "quantity": item_detail["quantity"],
-                "unit_price": float(item_detail["price"]),
-            }
-        )
+    # Look up property (address) info
+    address = {}
+    property_relationships = customer.get("relationships", {}).get("properties", {}).get("data", [])
+    if property_relationships:
+        first_property_id = property_relationships[0]["id"]
+        property_obj = included_lookup.get(first_property_id, {})
+        address = property_obj.get("attributes", {})
+
+    customer_data = {
+        "id": customer_id,
+        "name": customer_attributes.get("name"),
+        "email": customer_attributes.get("email"),
+        "address": {
+            "address1": address.get("address1"),
+            "address2": address.get("address2"),
+            "zipcode": address.get("zipcode"),
+            "city": address.get("city"),
+            "country": address.get("country"),
+        }
+    }
+
+    items = [
+        {
+            "description": "Rental",
+            "quantity": 1,
+            "unit_price": order["attributes"]["grand_total_with_tax_in_cents"] / 100
+        }
+    ]
 
     return {
-        "customer_name": customer_name,
-        "customer_email": customer_email,
+        "reference": order["id"],
+        "customer": customer_data,
         "items": items,
     }
 
-
 # Retrieve all paid orders and filter those with payments succeeded yesterday
+
 def get_paid_orders():
     yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
     url = f"{BOOQABLE_BASE_URL}orders?filter[payment_status]=paid&include=payments"
@@ -48,23 +80,28 @@ def get_paid_orders():
 
         def get_payments_for_order(order_id):
             return [
-                item
-                for item in included
+                item for item in included
                 if item["type"] == "payments"
-                and item["relationships"]["order"]["data"]["id"] == order_id
+                and item["relationships"].get("order", {}).get("data", {}).get("id") == order_id
             ]
 
-        filtered_orders = []
+        bookings = []
         for order in orders:
             order_id = order["id"]
             payments = get_payments_for_order(order_id)
             for payment in payments:
                 succeeded_at = payment["attributes"].get("succeeded_at", "")
                 if succeeded_at.startswith(yesterday):
-                    filtered_orders.append(order)
+                    # Fetch full order info with customer and properties
+                    full_order_response = get_order_details(order_id)
+                    if full_order_response:
+                        full_order = full_order_response.get("data")
+                        full_included = full_order_response.get("included", [])
+                        included_lookup = {item["id"]: item for item in full_included if "id" in item}
+                        bookings.append(transform_order_to_booking(full_order, included_lookup))
                     break
 
-        return filtered_orders
+        return bookings
 
     logging.error(f"Error fetching orders from Booqable: {response.text}")
     return []

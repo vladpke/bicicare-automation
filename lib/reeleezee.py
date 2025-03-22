@@ -4,7 +4,6 @@ import requests
 import datetime
 import uuid
 
-
 # Reeleezee credentials from environment
 USERNAME = os.getenv("REELEEZEE_USERNAME")
 PASSWORD = os.getenv("REELEEZEE_PASSWORD")
@@ -18,13 +17,24 @@ HEADERS = {
     "Prefer": "return=representation",
 }
 
-
 def get_auth():
     return requests.auth.HTTPBasicAuth(USERNAME, PASSWORD)
 
+def create_customer(customer_id, name, email, address=None):
+    payload = {
+        "Name": name,
+        "SearchName": name,
+        "Email": email
+    }
 
-def create_customer(customer_id, name, email):
-    payload = {"Name": name, "SearchName": name, "Email": email}
+    if address:
+        payload["PostalAddress"] = {
+            "AddressLine1": address.get("address1"),
+            "AddressLine2": address.get("address2"),
+            "PostalCode": address.get("zipcode"),
+            "CityName": address.get("city"),
+            "CountryName": address.get("country")
+        }
 
     url = f"{BASE_URL}/{ADMIN_ID}/customers/{customer_id}"
     response = requests.put(url, auth=get_auth(), headers=HEADERS, json=payload)
@@ -35,7 +45,6 @@ def create_customer(customer_id, name, email):
     else:
         logging.error("Error creating customer: %s", response.text)
         return None
-
 
 def create_invoice(customer_id, items, total_amount, reference):
     invoice_id = str(uuid.uuid4())
@@ -58,7 +67,6 @@ def create_invoice(customer_id, items, total_amount, reference):
         logging.error("Error creating invoice: %s", response.text)
         return None
 
-
 def book_invoice(invoice_id):
     url = f"{BASE_URL}/{ADMIN_ID}/salesinvoices/{invoice_id}/Actions"
     payload = {"id": invoice_id, "Type": 17}
@@ -71,18 +79,18 @@ def book_invoice(invoice_id):
         logging.error("Error booking invoice %s: %s", invoice_id, response.text)
         return False
 
-
 # Create and book a sales invoice using manual invoice lines and proper tax/account links
 def process_booking(booking):
     customer_data = booking["customer"]
     customer_id = customer_data["id"]
     customer_name = customer_data["name"]
     customer_email = customer_data["email"]
+    customer_address = customer_data.get("address")
 
     reference = "BOOQABLE-" + booking.get("reference", "")
 
     # Ensure customer exists in Reeleezee
-    created_customer_id = create_customer(customer_id, customer_name, customer_email)
+    created_customer_id = create_customer(customer_id, customer_name, customer_email, customer_address)
     if not created_customer_id:
         return
 
