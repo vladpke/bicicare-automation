@@ -89,7 +89,11 @@ def transform_order_to_booking(order, included_lookup):
         "items": items,
     }
 
-# Retrieve all paid orders and filter those with payments succeeded yesterday
+# Retrieve paid orders from Booqable created yesterday.
+# For each order, fetches full details (including payments, customer, and customer address).
+# Filters for orders where at least one payment succeeded yesterday.
+# Transforms valid orders into booking objects compatible with Reeleezee integration.
+# Returns a list of fully formatted booking dictionaries.
 def get_paid_orders():
     yesterday = datetime.date.today() - datetime.timedelta(days=1)
     start = f"{yesterday}T00:00:00+00:00"
