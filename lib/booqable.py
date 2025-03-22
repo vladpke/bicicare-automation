@@ -91,8 +91,17 @@ def transform_order_to_booking(order, included_lookup):
 
 # Retrieve all paid orders and filter those with payments succeeded yesterday
 def get_paid_orders():
-    yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
-    url = f"{BOOQABLE_BASE_URL}orders?filter[payment_status]=paid&include=payments"
+    yesterday = datetime.date.today() - datetime.timedelta(days=1)
+    start = f"{yesterday}T00:00:00+00:00"
+    end = f"{yesterday}T23:59:59+00:00"
+
+    url = (
+        f"{BOOQABLE_BASE_URL}orders?"
+        f"filter[payment_status]=paid&"
+        f"filter[created_at][gte]={start}&"
+        f"filter[created_at][lte]={end}&"
+        f"include=payments"
+    )
     response = requests.get(url, headers=booqable_headers)
 
     if response.status_code == 200:
