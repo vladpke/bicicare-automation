@@ -7,16 +7,32 @@ logging.basicConfig(
 )
 
 def process_all_paid_orders():
-    paid_bookings = get_paid_orders()
+    paid_orders = get_paid_orders()
 
-    if not paid_bookings:
+    if not paid_orders:
         logging.info("No paid orders found today.")
         return
 
-    logging.info(f"Processing {len(paid_bookings)} paid orders...")
+    logging.info(f"Processing {len(paid_orders)} paid orders...")
 
-    for booking in paid_bookings:
-        process_booking(booking)
+    successes = []
+    failures = []
+
+    for order in paid_orders:
+        result = process_booking(order)
+        if result["success"]:
+            successes.append(result)
+        else:
+            failures.append(result)
+
+    logging.info(f"✅ Successfully processed {len(successes)} orders:")
+    for entry in successes:
+        logging.info(f"- {entry['message']}")
+
+    if failures:
+        logging.warning(f"❌ Failed to process {len(failures)} orders:")
+        for entry in failures:
+            logging.warning(f"- {entry['message']}")
 
 if __name__ == "__main__":
     process_all_paid_orders()

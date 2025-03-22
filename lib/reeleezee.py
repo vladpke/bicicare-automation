@@ -21,7 +21,7 @@ HEADERS = {
 def get_auth():
     return requests.auth.HTTPBasicAuth(USERNAME, PASSWORD)
 
-def get_country_id(country_name):
+def _get_country_id(country_name):
     try:
         country = pycountry.countries.lookup(country_name)
         return country.alpha_2
@@ -42,18 +42,17 @@ def create_customer(customer_id, name, email, address=None):
     if response.status_code in [200, 201]:
         logging.info("Customer created or updated: %s", response.json())
 
-        # Create address if available
         if address:
-            create_customer_address(customer_id, address)
+            _create_customer_address(customer_id, address)
 
-        return customer_id
+        return True
     else:
         logging.error("Error creating customer: %s", response.text)
-        return None
+        return False
 
-def create_customer_address(customer_id, address):
+def _create_customer_address(customer_id, address):
     address_id = str(uuid.uuid4())
-    country_id = get_country_id(address.get("country"))
+    country_id = _get_country_id(address.get("country"))
 
     if not country_id:
         logging.warning("Skipping address creation due to unknown country.")
@@ -79,6 +78,31 @@ def create_customer_address(customer_id, address):
         logging.info("Address added successfully for customer %s", customer_id)
     else:
         logging.error("Failed to add address for customer %s: %s", customer_id, response.text)
+
+def _prepare_invoice_items(booking):
+    return [
+        {
+            "Sequence": idx + 1,
+            "Quantity": item["quantity"],
+            "Price": item["unit_price"],
+            "Description": item["description"],
+            "InvoiceLineType": 12,
+            "DocumentCategoryAccount": {
+                "id": "47e2b087-330a-437d-91b8-706e309efd74",
+                "Name": "Omzet 3",
+            },
+            "TaxRate": {"id": "1e44993a-15f6-419f-87e5-3e31ac3d9383"},
+        }
+        for idx, item in enumerate(booking["items"])
+    ]
+
+def _calculate_total_amount(booking):
+    return sum(
+        item["unit_price"] * item["quantity"] for item in booking["items"]
+    )
+
+def _generate_reference(booking):
+    return "BOOQABLE-" + booking.get("reference", "")
 
 def create_invoice(customer_id, items, total_amount, reference):
     invoice_id = str(uuid.uuid4())
@@ -113,42 +137,48 @@ def book_invoice(invoice_id):
         logging.error("Error booking invoice %s: %s", invoice_id, response.text)
         return False
 
-# Create and book a sales invoice using manual invoice lines and proper tax/account links
+# Create and book a sales invoice in Reeleezee.
+# This uses manual invoice lines, links to a customer, applies tax and account codes,
+# and returns a success/failure result with message and IDs for logging.
 def process_booking(booking):
     customer_data = booking["customer"]
     customer_id = customer_data["id"]
     customer_name = customer_data["name"]
     customer_email = customer_data["email"]
     customer_address = customer_data.get("address")
+    reference = _generate_reference(booking)
 
-    reference = "BOOQABLE-" + booking.get("reference", "")
-
-    # Ensure customer exists in Reeleezee
-    created_customer_id = create_customer(customer_id, customer_name, customer_email, customer_address)
-    if not created_customer_id:
-        return
-
-    items = [
-        {
-            "Sequence": idx + 1,
-            "Quantity": item["quantity"],
-            "Price": item["unit_price"],
-            "Description": item["description"],
-            "InvoiceLineType": 12,
-            "DocumentCategoryAccount": {
-                "id": "47e2b087-330a-437d-91b8-706e309efd74",
-                "Name": "Omzet 3",
-            },
-            "TaxRate": {"id": "1e44993a-15f6-419f-87e5-3e31ac3d9383"},
+    if not create_customer(customer_id, customer_name, customer_email, customer_address):
+        return {
+            "success": False,
+            "customer_id": customer_id,
+            "invoice_id": None,
+            "message": f"Failed to create/update customer: {customer_name}"
         }
-        for idx, item in enumerate(booking["items"])
-    ]
 
-    total_amount = sum(
-        item["unit_price"] * item["quantity"] for item in booking["items"]
-    )
+    items = _prepare_invoice_items(booking)
+    total_amount = _calculate_total_amount(booking)
 
     invoice_id = create_invoice(customer_id, items, total_amount, reference)
+    if not invoice_id:
+        return {
+            "success": False,
+            "customer_id": customer_id,
+            "invoice_id": None,
+            "message": f"Failed to create invoice for customer {customer_name}"
+        }
 
-    if invoice_id:
-        book_invoice(invoice_id)
+    if not book_invoice(invoice_id):
+        return {
+            "success": False,
+            "customer_id": customer_id,
+            "invoice_id": invoice_id,
+            "message": f"Failed to book invoice {invoice_id} for customer {customer_name}"
+        }
+
+    return {
+        "success": True,
+        "customer_id": customer_id,
+        "invoice_id": invoice_id,
+        "message": f"Invoice {invoice_id} created and booked for customer {customer_name}"
+    }
