@@ -69,7 +69,6 @@ def transform_order_to_booking(order, included_lookup):
         }
 
     customer_data = {
-        "id": customer_id,
         "name": customer_attributes.get("name"),
         "email": customer_attributes.get("email"),
         "address": address,
@@ -88,14 +87,10 @@ def transform_order_to_booking(order, included_lookup):
                 "line_price": attrs.get("price_in_cents", 0) / 100  # already includes quantity and VAT
             })
 
-    # Get grand total including tax from order attributes
-    grand_total_with_tax_cents = order["attributes"].get("grand_total_with_tax_in_cents", 0)
-
     return {
-        "reference": order["id"],
+        "booqable_order_number": order.get("attributes", {})["number"],
         "customer": customer_data,
-        "items": items,
-        "grand_total_with_tax": grand_total_with_tax_cents / 100
+        "items": items
     }
 
 # Retrieve paid orders from Booqable that were created yesterday.
