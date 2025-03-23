@@ -100,7 +100,7 @@ def _prepare_invoice_items(booking):
 def _generate_reference(booking):
     return "BOOQABLE-" + booking.get("reference", "")
 
-def create_invoice(customer_id, items, reference):
+def create_invoice(customer_id, items, reference, grand_total_with_tax):
     invoice_id = str(uuid.uuid4())
     payload = {
         "Entity": {"id": customer_id},
@@ -108,6 +108,8 @@ def create_invoice(customer_id, items, reference):
         "DueDate": str(datetime.date.today() + datetime.timedelta(days=30)),
         "Reference": reference,
         "DocumentLineList": items,
+        "BaseInvoiceAmount": grand_total_with_tax,
+        "TotalPayableAmount": grand_total_with_tax,
     }
 
     url = f"{BASE_URL}/{ADMIN_ID}/salesinvoices/{invoice_id}"
@@ -153,7 +155,7 @@ def process_booking(booking):
 
     items = _prepare_invoice_items(booking)
 
-    invoice_id = create_invoice(customer_id, items, reference)
+    invoice_id = create_invoice(customer_id, items, reference, booking["grand_total_with_tax"])
     if not invoice_id:
         return {
             "success": False,
