@@ -33,7 +33,15 @@ def create_customer(customer_id, name, email, address=None):
     payload = {
         "Name": name,
         "SearchName": name,
-        "Email": email
+        "CommunicationChannelList": [
+            {
+                "CommunicationType": 10,
+                "FormattedValue": email
+            }
+        ],
+        "EntityType": {
+            "id": "83b1d717-a669-4687-ace0-4de08ee58f93"
+        }
     }
 
     url = f"{BASE_URL}/{ADMIN_ID}/customers/{customer_id}"
