@@ -85,12 +85,9 @@ def _prepare_invoice_items(booking):
             "Sequence": idx + 1,
             "Quantity": item["quantity"],
             "Price": round(item["line_price"] / 1.21, 2),
-            "LineTotalPayableAmount": item["line_price"],  # price incl. VAT
             "Description": item["description"],
-            "InvoiceLineType": 12,
             "DocumentCategoryAccount": {
-                "id": "47e2b087-330a-437d-91b8-706e309efd74",
-                "Name": "Omzet 3",
+                "id": "61f4ae1b-7700-4685-9930-ddfe71fb626e"
             },
             "TaxRate": {"id": "1e44993a-15f6-419f-87e5-3e31ac3d9383"},
         }
