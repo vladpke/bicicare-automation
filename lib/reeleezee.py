@@ -84,7 +84,8 @@ def _prepare_invoice_items(booking):
         {
             "Sequence": idx + 1,
             "Quantity": item["quantity"],
-            "Price": item["unit_price"],
+            "Price": round(item["line_price"] / 1.21, 2),
+            "LineTotalPayableAmount": item["line_price"],  # price incl. VAT
             "Description": item["description"],
             "InvoiceLineType": 12,
             "DocumentCategoryAccount": {
@@ -96,21 +97,15 @@ def _prepare_invoice_items(booking):
         for idx, item in enumerate(booking["items"])
     ]
 
-def _calculate_total_amount(booking):
-    return sum(
-        item["unit_price"] * item["quantity"] for item in booking["items"]
-    )
-
 def _generate_reference(booking):
     return "BOOQABLE-" + booking.get("reference", "")
 
-def create_invoice(customer_id, items, total_amount, reference):
+def create_invoice(customer_id, items, reference):
     invoice_id = str(uuid.uuid4())
     payload = {
         "Entity": {"id": customer_id},
         "InvoiceDate": str(datetime.date.today()),
         "DueDate": str(datetime.date.today() + datetime.timedelta(days=30)),
-        "TotalAmount": total_amount,
         "Reference": reference,
         "DocumentLineList": items,
     }
@@ -157,9 +152,8 @@ def process_booking(booking):
         }
 
     items = _prepare_invoice_items(booking)
-    total_amount = _calculate_total_amount(booking)
 
-    invoice_id = create_invoice(customer_id, items, total_amount, reference)
+    invoice_id = create_invoice(customer_id, items, reference)
     if not invoice_id:
         return {
             "success": False,

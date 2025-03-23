@@ -15,9 +15,9 @@ booqable_headers = {
     "Content-Type": "application/json",
 }
 
-# Fetch full order details with customer and address info
+# Fetch full order details with customer, address and line info
 def get_order_details(order_id):
-    url = f"{BOOQABLE_BASE_URL}orders/{order_id}?include=payments,customer,customer.properties"
+    url = f"{BOOQABLE_BASE_URL}orders/{order_id}?include=payments,lines,customer,customer.properties"
     response = requests.get(url, headers=booqable_headers)
 
     if response.status_code == 200:
@@ -75,25 +75,35 @@ def transform_order_to_booking(order, included_lookup):
         "address": address,
     }
 
-    items = [
-        {
-            "description": "Rental",
-            "quantity": 1,
-            "unit_price": order["attributes"]["grand_total_with_tax_in_cents"] / 100,
-        }
-    ]
+    # Extract order lines from included
+    line_ids = [line_ref["id"] for line_ref in order.get("relationships", {}).get("lines", {}).get("data", [])]
+    items = []
+    for line_id in line_ids:
+        line = included_lookup.get(line_id)
+        if line and line["type"] == "lines":
+            attrs = line.get("attributes", {})
+            items.append({
+                "description": attrs.get("title", "Item"),
+                "quantity": attrs.get("quantity", 1),
+                "line_price": attrs.get("price_in_cents", 0) / 100  # already includes quantity and VAT
+            })
+
+    # Get grand total including tax from order attributes
+    grand_total_with_tax_cents = order["attributes"].get("grand_total_with_tax_in_cents", 0)
 
     return {
         "reference": order["id"],
         "customer": customer_data,
         "items": items,
+        "grand_total_with_tax": grand_total_with_tax_cents / 100
     }
 
-# Retrieve paid orders from Booqable created yesterday.
-# For each order, fetches full details (including payments, customer, and customer address).
-# Filters for orders where at least one payment succeeded yesterday.
-# Transforms valid orders into booking objects compatible with Reeleezee integration.
-# Returns a list of fully formatted booking dictionaries.
+# Retrieve paid orders from Booqable that were created yesterday.
+# For each order, fetches full details including payments, customer, address, and order lines.
+# Filters for orders that have at least one payment succeeded yesterday.
+# Transforms each valid order into a booking object compatible with Reeleezee integration,
+# including itemized lines and customer address details.
+# Returns a list of formatted booking dictionaries ready for invoicing.
 def get_paid_orders():
     yesterday = datetime.date.today() - datetime.timedelta(days=1)
     start = f"{yesterday}T00:00:00+00:00"
@@ -126,7 +136,7 @@ def get_paid_orders():
             payments = get_payments_for_order(order_id)
             for payment in payments:
                 succeeded_at = payment["attributes"].get("succeeded_at", "")
-                if succeeded_at.startswith(yesterday):
+                if succeeded_at.startswith(str(yesterday)):
                     full_order_response = get_order_details(order_id)
                     if full_order_response:
                         full_order = full_order_response.get("data")
