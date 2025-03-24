@@ -30,6 +30,32 @@ def _get_country_id(country_name):
         logging.warning(f"Could not find country code for: {country_name}")
         return None
 
+def _find_existing_customer(email):
+    search = email.lower()
+    url = f"{BASE_URL}/{ADMIN_ID}/Customers?$filter=(contains(tolower(EMail),'{search}'))&$select=id,Name,EMail&$top=1"
+    response = requests.get(url, auth=get_auth(), headers=HEADERS)
+
+    if response.status_code == 200:
+        results = response.json().get("value", [])
+        if results:
+            customer_id = results[0].get("id")
+            logging.info("Found existing customer: %s", customer_id)
+            return customer_id
+    return None
+
+def _find_existing_invoice(header):
+    search = header.lower()
+    url = f"{BASE_URL}/{ADMIN_ID}/SalesInvoices?$filter=(contains(tolower(Header),'{search}'))&$select=id,Header,InvoiceNumber&$top=1"
+    response = requests.get(url, auth=get_auth(), headers=HEADERS)
+
+    if response.status_code == 200:
+        results = response.json().get("value", [])
+        if results:
+            invoice_id = results[0].get("id")
+            logging.info("Found existing invoice: %s", invoice_id)
+            return invoice_id
+    return None
+
 def create_customer(name, email, address=None):
     payload = {
         "Name": name,
@@ -189,13 +215,24 @@ def process_booking(booking):
     customer_address = customer_data.get("address")
     header = _generate_header(booking)
 
-    customer_id = create_customer(customer_name, customer_email, customer_address)
+    customer_id = _find_existing_customer(customer_email)
     if not customer_id:
+        customer_id = create_customer(customer_name, customer_email, customer_address)
+        if not customer_id:
+            return {
+                "success": False,
+                "customer_id": None,
+                "invoice_id": None,
+                "message": f"Failed to create customer: {customer_name}"
+            }
+
+    invoice_id = _find_existing_invoice(header)
+    if invoice_id:
         return {
-            "success": False,
-            "customer_id": None,
-            "invoice_id": None,
-            "message": f"Failed to create customer: {customer_name}"
+            "success": True,
+            "customer_id": customer_id,
+            "invoice_id": invoice_id,
+            "message": f"Invoice {invoice_id} already exists for customer {customer_name}"
         }
 
     invoice_id = _create_invoice_shell(customer_id, header)
