@@ -164,16 +164,16 @@ def _add_invoice_lines_placeholder(invoice_id, count):
         logging.error("Failed to add invoice lines: %s", response.text)
         return []
 
-def _update_invoice_lines(invoice_id, line_ids, booking_items):
+def _update_invoice_lines(invoice_id, line_ids, booking_lines):
     updated_lines = []
 
-    for idx, (line_id, item) in enumerate(zip(line_ids, booking_items)):
+    for idx, (line_id, line) in enumerate(zip(line_ids, booking_lines)):
         updated_lines.append({
             "id": line_id,
             "Sequence": idx + 1,
-            "Quantity": item["quantity"],
-            "Price": round(item["line_price"] / 1.21, 2),
-            "Description": item["description"],
+            "Quantity": line["quantity"],
+            "Price": round(line["line_price"] / 1.21, 2),
+            "Description": line["description"],
             "DocumentCategoryAccount": {
                 "id": "61f4ae1b-7700-4685-9930-ddfe71fb626e"
             },
@@ -244,7 +244,7 @@ def process_booking(booking):
             "message": f"Failed to create invoice shell for {customer_name}"
         }
 
-    line_ids = _add_invoice_lines_placeholder(invoice_id, len(booking["items"]))
+    line_ids = _add_invoice_lines_placeholder(invoice_id, len(booking["lines"]))
     if not line_ids:
         return {
             "success": False,
@@ -253,7 +253,7 @@ def process_booking(booking):
             "message": f"Failed to add lines to invoice {invoice_id}"
         }
 
-    if not _update_invoice_lines(invoice_id, line_ids, booking["items"]):
+    if not _update_invoice_lines(invoice_id, line_ids, booking["lines"]):
         return {
             "success": False,
             "customer_id": customer_id,
