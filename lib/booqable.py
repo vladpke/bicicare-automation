@@ -76,13 +76,13 @@ def transform_order_to_booking(order, included_lookup):
 
     # Extract order lines from included
     line_ids = [line_ref["id"] for line_ref in order.get("relationships", {}).get("lines", {}).get("data", [])]
-    items = []
+    lines = []
     for line_id in line_ids:
         line = included_lookup.get(line_id)
         if line and line["type"] == "lines":
             attrs = line.get("attributes", {})
-            items.append({
-                "description": attrs.get("title", "Item"),
+            lines.append({
+                "description": attrs.get("title", "Product"),
                 "quantity": attrs.get("quantity", 1),
                 "line_price": attrs.get("price_in_cents", 0) / 100  # already includes quantity and VAT
             })
@@ -90,7 +90,7 @@ def transform_order_to_booking(order, included_lookup):
     return {
         "booqable_order_number": order.get("attributes", {})["number"],
         "customer": customer_data,
-        "items": items
+        "lines": lines
     }
 
 # Retrieve paid orders from Booqable that were created yesterday.
